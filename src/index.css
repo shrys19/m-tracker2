@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-top {
+  padding-top: max(var(--safe-top), 12px);
+}
+
+.safe-bottom {
+  padding-bottom: max(
+    var(--safe-bottom),
+    12px
+  );
+}
