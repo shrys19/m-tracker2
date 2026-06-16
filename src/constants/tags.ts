@@ -11,8 +11,9 @@ export type StatusTag = (typeof STATUS_TAGS)[number];
  * insight aggregations meaningful.
  */
 export const AVAILABLE_TAGS = [
-  "P",
-  "No P",
+  "Help",
+  "No Help",
+  "Toys",
   "Very good",
   "Good",
   "Okay",
