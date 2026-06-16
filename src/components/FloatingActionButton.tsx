@@ -1,9 +1,10 @@
 import { useState } from "react";
 import BottomSheet from "./primitives/BottomSheet";
+import { STATUS_TAGS } from "../constants/tags";
 
 type Props = {
   hasActiveSession: boolean;
-  onLogEvent: () => void | Promise<void>;
+  onLogEvent: (status: string) => void | Promise<void>;
   onAddPastEvent: () => void;
   onAddPastSession: () => void;
   onStartSession: () => void | Promise<void>;
@@ -34,15 +35,19 @@ export default function FloatingActionButton({
 
       {sheetOpen && (
         <BottomSheet onClose={() => setSheetOpen(false)}>
-          <button
-            onClick={async () => {
-              await onLogEvent();
-              setSheetOpen(false);
-            }}
-            className="mb-3 w-full rounded-xl bg-white py-4 font-semibold text-black"
-          >
-            I did it
-          </button>
+          <p className="mb-2 text-sm text-zinc-500">I did it — log as:</p>
+          {STATUS_TAGS.map((status) => (
+            <button
+              key={status}
+              onClick={async () => {
+                await onLogEvent(status);
+                setSheetOpen(false);
+              }}
+              className="mb-3 w-full rounded-xl bg-white py-4 font-semibold text-black"
+            >
+              {status}
+            </button>
+          ))}
 
           <button
             onClick={() => {

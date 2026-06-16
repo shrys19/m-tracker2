@@ -1,4 +1,10 @@
 import { db, type Session } from "../db/database";
+import { STATUS_TAGS } from "../constants/tags";
+
+/** Random required status tag — every demo entry carries one. */
+function randomStatus(): string {
+  return STATUS_TAGS[Math.floor(Math.random() * STATUS_TAGS.length)];
+}
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -29,6 +35,7 @@ export async function seedDemoData(): Promise<void> {
       entries.push({
         type: "quick",
         timestamp: new Date(date.getTime() + j * HOUR_MS).toISOString(),
+        tags: [randomStatus()],
       });
     }
 
@@ -41,6 +48,7 @@ export async function seedDemoData(): Promise<void> {
         type: "session",
         startTime: start.toISOString(),
         endTime: new Date(start.getTime() + durationMs).toISOString(),
+        tags: [randomStatus()],
       });
     }
   }

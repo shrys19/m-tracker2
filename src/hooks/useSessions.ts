@@ -31,7 +31,7 @@ export type SessionsState = {
   reload: () => Promise<void>;
 
   // Mutators
-  logQuickEvent: () => Promise<void>;
+  logQuickEvent: (status: string) => Promise<void>;
   addPastEvent: (input: PastEventInput) => Promise<void>;
   startSession: () => Promise<void>;
   endSession: () => Promise<number | null>;
@@ -77,10 +77,17 @@ export function useSessions(): SessionsState {
   }, [sessions]);
 
   // Mutators.
-  const logQuickEvent = useCallback(async () => {
-    await db.sessions.add({ type: "quick", timestamp: new Date().toISOString() });
-    await reload();
-  }, [reload]);
+  const logQuickEvent = useCallback(
+    async (status: string) => {
+      await db.sessions.add({
+        type: "quick",
+        timestamp: new Date().toISOString(),
+        tags: [status],
+      });
+      await reload();
+    },
+    [reload]
+  );
 
   const addPastEvent = useCallback(
     async ({ timestamp, description, tags }: PastEventInput) => {

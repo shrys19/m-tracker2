@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Modal from "../primitives/Modal";
 import TagPicker from "../primitives/TagPicker";
+import StatusPicker from "../primitives/StatusPicker";
+import { withStatus } from "../../constants/tags";
 import { datetimeLocalNow } from "../../lib/date";
 
 type Props = {
@@ -13,13 +15,15 @@ export default function PastEventModal({ onSave, onCancel }: Props) {
   // and these initializers give us a fresh form every time.
   const [datetime, setDatetime] = useState(datetimeLocalNow);
   const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
 
   function handleSave() {
+    if (!status) return;
     onSave({
       timestamp: new Date(datetime).toISOString(),
       description,
-      tags,
+      tags: withStatus(status, tags),
     });
   }
 
@@ -37,6 +41,11 @@ export default function PastEventModal({ onSave, onCancel }: Props) {
       />
 
       <div className="mb-5">
+        <p className="mb-2 text-sm text-zinc-500">Status (required)</p>
+        <StatusPicker value={status} onChange={setStatus} />
+      </div>
+
+      <div className="mb-5">
         <p className="mb-2 text-sm text-zinc-500">Tags</p>
         <TagPicker value={tags} onChange={setTags} />
       </div>
@@ -51,7 +60,8 @@ export default function PastEventModal({ onSave, onCancel }: Props) {
 
       <button
         onClick={handleSave}
-        className="mb-3 w-full rounded-xl bg-blue-600 py-4 font-semibold"
+        disabled={!status}
+        className="mb-3 w-full rounded-xl bg-blue-600 py-4 font-semibold disabled:opacity-40"
       >
         Save Event
       </button>

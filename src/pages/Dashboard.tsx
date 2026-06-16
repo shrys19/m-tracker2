@@ -43,7 +43,14 @@ export default function Dashboard({
   onUpdateEntry,
   onShowBestStreak,
 }: Props) {
-  const stats = useMemo(() => calculateStreakStats(sessions), [sessions]);
+  const finishedStats = useMemo(
+    () => calculateStreakStats(sessions, "Finished"),
+    [sessions]
+  );
+  const notFinishedStats = useMemo(
+    () => calculateStreakStats(sessions, "Not Finished"),
+    [sessions]
+  );
 
   return (
     <>
@@ -56,23 +63,39 @@ export default function Dashboard({
         <div className="mb-6 grid grid-cols-2 gap-4">
           <StatTile label="Total Events" value={totalEvents} />
 
+          <StatTile label="Days Since Last" value={finishedStats.daysSinceLastEvent} />
+
           <StatTile
-            label="Current Streak"
-            value={stats.currentStreak}
+            label="Finished Streak"
+            value={finishedStats.currentStreak}
             valueClassName="text-green-400"
           />
 
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-            <div className="text-xs text-zinc-500">Best Streak</div>
+            <div className="text-xs text-zinc-500">Best Finished</div>
             <button
-              onClick={() => onShowBestStreak(stats.bestStreakDates)}
+              onClick={() => onShowBestStreak(finishedStats.bestStreakDates)}
               className="mt-2 text-3xl font-bold text-yellow-400"
             >
-              🔥 {stats.bestStreak}
+              🔥 {finishedStats.bestStreak}
             </button>
           </div>
 
-          <StatTile label="Days Since Last" value={stats.daysSinceLastEvent} />
+          <StatTile
+            label="Not Finished Streak"
+            value={notFinishedStats.currentStreak}
+            valueClassName="text-orange-400"
+          />
+
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="text-xs text-zinc-500">Best Not Finished</div>
+            <button
+              onClick={() => onShowBestStreak(notFinishedStats.bestStreakDates)}
+              className="mt-2 text-3xl font-bold text-yellow-400"
+            >
+              🔥 {notFinishedStats.bestStreak}
+            </button>
+          </div>
 
           <div className="col-span-2 rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
             <div className="flex items-center justify-between">

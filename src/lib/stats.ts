@@ -19,8 +19,17 @@ export type StreakStats = {
  * Streak computation. A "day" is a local-time YYYY-MM-DD key with at least one
  * entry. The current streak counts back from today; the best streak is the
  * longest consecutive run in history.
+ *
+ * When `tag` is given, only entries carrying that tag count toward the streak.
  */
-export function calculateStreakStats(sessions: Session[]): StreakStats {
+export function calculateStreakStats(
+  sessions: Session[],
+  tag?: string
+): StreakStats {
+  if (tag) {
+    sessions = sessions.filter((s) => s.tags?.includes(tag));
+  }
+
   if (sessions.length === 0) {
     return {
       currentStreak: 0,

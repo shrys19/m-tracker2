@@ -7,7 +7,9 @@ import {
   sessionDurationMs,
 } from "../lib/sessions";
 import TagPicker from "./primitives/TagPicker";
+import StatusPicker from "./primitives/StatusPicker";
 import TagBadges from "./primitives/TagBadges";
+import { getStatus, getOtherTags, withStatus } from "../constants/tags";
 
 type Props = {
   item: Session;
@@ -25,17 +27,19 @@ type Props = {
 export default function ActivityTimelineItem({ item, onDelete, onUpdate }: Props) {
   const [editing, setEditing] = useState(false);
   const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<string | null>(null);
   const [editTags, setEditTags] = useState<string[]>([]);
 
   function beginEdit() {
     setEditDescription(item.description ?? "");
-    setEditTags(item.tags ?? []);
+    setEditStatus(getStatus(item.tags));
+    setEditTags(getOtherTags(item.tags));
     setEditing(true);
   }
 
   async function saveEdit() {
-    if (item.id == null) return;
-    await onUpdate(item.id, editDescription, editTags);
+    if (item.id == null || !editStatus) return;
+    await onUpdate(item.id, editDescription, withStatus(editStatus, editTags));
     setEditing(false);
   }
 
@@ -73,13 +77,22 @@ export default function ActivityTimelineItem({ item, onDelete, onUpdate }: Props
                 />
 
                 <div className="mt-3">
+                  <StatusPicker
+                    value={editStatus}
+                    onChange={setEditStatus}
+                    size="sm"
+                  />
+                </div>
+
+                <div className="mt-3">
                   <TagPicker value={editTags} onChange={setEditTags} size="sm" />
                 </div>
 
                 <div className="mt-3 flex gap-2">
                   <button
                     onClick={saveEdit}
-                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm"
+                    disabled={!editStatus}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm disabled:opacity-40"
                   >
                     Save
                   </button>
