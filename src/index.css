@@ -3,6 +3,13 @@
 :root {
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #09090b;
+  min-height: 100%;
 }
 
 .safe-top {
