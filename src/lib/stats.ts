@@ -1,4 +1,5 @@
 import type { Session } from "../db/database";
+import { getStatus } from "../constants/tags";
 import { getLocalDateKey } from "./date";
 import {
   getSessionDate,
@@ -94,6 +95,183 @@ export function calculateStreakStats(
   const daysSinceLastEvent = Math.floor((Date.now() - latestTs) / DAY_MS);
 
   return { currentStreak, bestStreak, bestStreakDates, daysSinceLastEvent };
+}
+
+export type MonthStats = {
+  totalEvents: number;
+  finishedCount: number;
+  notFinishedCount: number;
+  activeDays: number;
+  totalSessionMs: number;
+  avgSessionMs: number;
+  longestSessionMs: number;
+};
+
+/**
+ * Aggregates for a single calendar month (the one currently shown on the
+ * Calendar page). Only entries whose date falls in `year`/`monthIndex` count.
+ */
+export function calculateMonthStats(
+  sessions: Session[],
+  year: number,
+  monthIndex: number
+): MonthStats {
+  let totalEvents = 0;
+  let finishedCount = 0;
+  let notFinishedCount = 0;
+  let totalSessionMs = 0;
+  let completedCount = 0;
+  let longestSessionMs = 0;
+  const days = new Set<string>();
+
+  for (const s of sessions) {
+    const dateString = getSessionDate(s);
+    if (!dateString) continue;
+
+    const d = new Date(dateString);
+    if (d.getFullYear() !== year || d.getMonth() !== monthIndex) continue;
+
+    totalEvents++;
+    days.add(getLocalDateKey(dateString));
+
+    const status = getStatus(s.tags);
+    if (status === "Finished") finishedCount++;
+    else if (status === "Not Finished") notFinishedCount++;
+
+    if (isCompletedSession(s)) {
+      const dur = sessionDurationMs(s);
+      totalSessionMs += dur;
+      completedCount++;
+      if (dur > longestSessionMs) longestSessionMs = dur;
+    }
+  }
+
+  return {
+    totalEvents,
+    finishedCount,
+    notFinishedCount,
+    activeDays: days.size,
+    totalSessionMs,
+    avgSessionMs: completedCount > 0 ? totalSessionMs / completedCount : 0,
+    longestSessionMs,
+  };
+}
+
+export type FinishStats = {
+  finished: number;
+  notFinished: number;
+  rate: number | null; // 0..1 over all entries with a status
+  thisMonthRate: number | null;
+  lastMonthRate: number | null;
+  monthDelta: number | null; // thisMonthRate - lastMonthRate
+};
+
+function rateOf(finished: number, notFinished: number): number | null {
+  const total = finished + notFinished;
+  return total === 0 ? null : finished / total;
+}
+
+/** All-time + this/last-month finish rate (Finished vs Not Finished). */
+export function calculateFinishStats(sessions: Session[]): FinishStats {
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth();
+  const lastY = curM === 0 ? curY - 1 : curY;
+  const lastM = curM === 0 ? 11 : curM - 1;
+
+  let finished = 0;
+  let notFinished = 0;
+  let tmFin = 0;
+  let tmNot = 0;
+  let lmFin = 0;
+  let lmNot = 0;
+
+  for (const s of sessions) {
+    const status = getStatus(s.tags);
+    if (!status) continue;
+    const isFin = status === "Finished";
+    if (isFin) finished++;
+    else notFinished++;
+
+    const dateString = getSessionDate(s);
+    if (!dateString) continue;
+    const d = new Date(dateString);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    if (y === curY && m === curM) {
+      if (isFin) tmFin++;
+      else tmNot++;
+    } else if (y === lastY && m === lastM) {
+      if (isFin) lmFin++;
+      else lmNot++;
+    }
+  }
+
+  const thisMonthRate = rateOf(tmFin, tmNot);
+  const lastMonthRate = rateOf(lmFin, lmNot);
+
+  return {
+    finished,
+    notFinished,
+    rate: rateOf(finished, notFinished),
+    thisMonthRate,
+    lastMonthRate,
+    monthDelta:
+      thisMonthRate == null || lastMonthRate == null
+        ? null
+        : thisMonthRate - lastMonthRate,
+  };
+}
+
+export type MonthlyPoint = {
+  year: number;
+  monthIndex: number;
+  label: string; // short month name
+  finished: number;
+  notFinished: number;
+  rate: number | null;
+};
+
+/**
+ * Per-month finish rate for the trailing `monthsBack` months (including the
+ * current one), ascending. Months with no status entries have rate null.
+ */
+export function monthlyFinishSeries(
+  sessions: Session[],
+  monthsBack = 6
+): MonthlyPoint[] {
+  const now = new Date();
+  const points: MonthlyPoint[] = [];
+  const index = new Map<string, MonthlyPoint>();
+
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const point: MonthlyPoint = {
+      year: d.getFullYear(),
+      monthIndex: d.getMonth(),
+      label: d.toLocaleString("default", { month: "short" }),
+      finished: 0,
+      notFinished: 0,
+      rate: null,
+    };
+    points.push(point);
+    index.set(`${point.year}-${point.monthIndex}`, point);
+  }
+
+  for (const s of sessions) {
+    const status = getStatus(s.tags);
+    if (!status) continue;
+    const dateString = getSessionDate(s);
+    if (!dateString) continue;
+    const d = new Date(dateString);
+    const point = index.get(`${d.getFullYear()}-${d.getMonth()}`);
+    if (!point) continue;
+    if (status === "Finished") point.finished++;
+    else point.notFinished++;
+  }
+
+  for (const p of points) p.rate = rateOf(p.finished, p.notFinished);
+  return points;
 }
 
 export type InsightsStats = {

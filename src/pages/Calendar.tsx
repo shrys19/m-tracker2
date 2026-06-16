@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Session } from "../db/database";
-import { createDateKey, getLocalDateKey } from "../lib/date";
+import {
+  createDateKey,
+  formatDurationCompact,
+  getLocalDateKey,
+} from "../lib/date";
 import { getSessionDate } from "../lib/sessions";
+import { calculateMonthStats } from "../lib/stats";
+import { getStatus } from "../constants/tags";
+
+type DayStatus = "finished" | "notfinished";
 
 type Props = {
   sessions: Session[];
@@ -9,11 +17,10 @@ type Props = {
 
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-/** Color class for a day cell based on how many events occurred that day. */
-function intensityClassForCount(count: number): string {
-  if (count >= 4) return "bg-blue-500";
-  if (count >= 2) return "bg-blue-700";
-  if (count === 1) return "bg-blue-900";
+/** Color class for a day cell based on its finish status. */
+function colorForStatus(status: DayStatus | undefined): string {
+  if (status === "finished") return "bg-green-700";
+  if (status === "notfinished") return "bg-red-800";
   return "bg-zinc-800";
 }
 
@@ -39,6 +46,20 @@ export default function Calendar({ sessions }: Props) {
     return map;
   }, [sessions]);
 
+  // Map of YYYY-MM-DD → finish status. A day is "finished" if any entry that
+  // day was Finished; otherwise "notfinished" if it had entries at all.
+  const statusMap = useMemo(() => {
+    const map = new Map<string, DayStatus>();
+    for (const session of sessions) {
+      const date = getSessionDate(session);
+      if (!date) continue;
+      const day = getLocalDateKey(date);
+      if (map.get(day) === "finished") continue; // finished wins
+      map.set(day, getStatus(session.tags) === "Finished" ? "finished" : "notfinished");
+    }
+    return map;
+  }, [sessions]);
+
   // Sessions that fall on the selected date.
   const selectedActivities = useMemo(() => {
     if (!selectedDate) return [];
@@ -49,6 +70,12 @@ export default function Calendar({ sessions }: Props) {
     });
   }, [sessions, selectedDate]);
 
+  // Aggregates for the visible month.
+  const monthStats = useMemo(
+    () => calculateMonthStats(sessions, year, monthIndex),
+    [sessions, year, monthIndex]
+  );
+
   // Build the grid of cells: leading blanks for the first weekday + each day number.
   const calendarCells: Array<number | null> = useMemo(() => {
     const cells: Array<number | null> = [];
@@ -58,6 +85,9 @@ export default function Calendar({ sessions }: Props) {
     for (let day = 1; day <= daysInMonth; day++) cells.push(day);
     return cells;
   }, [year, monthIndex]);
+
+  const showDuration = (ms: number) =>
+    ms > 0 ? formatDurationCompact(ms) : "--";
 
   function previousMonth() {
     setCurrentDate(new Date(year, monthIndex - 1, 1));
@@ -109,6 +139,7 @@ export default function Calendar({ sessions }: Props) {
 
             const dateKey = createDateKey(year, monthIndex, day);
             const count = activityMap.get(dateKey) ?? 0;
+            const status = statusMap.get(dateKey);
             const selected = selectedDate === dateKey;
             const isToday =
               day === today.getDate() &&
@@ -120,7 +151,7 @@ export default function Calendar({ sessions }: Props) {
                 key={day}
                 onClick={() => setSelectedDate(dateKey)}
                 className={`relative flex aspect-square items-center justify-center rounded-xl text-sm font-medium transition ${
-                  selected ? "bg-white text-black" : intensityClassForCount(count)
+                  selected ? "bg-white text-black" : colorForStatus(status)
                 } ${
                   isToday
                     ? "ring-2 ring-white ring-offset-1 ring-offset-zinc-900"
@@ -140,9 +171,39 @@ export default function Calendar({ sessions }: Props) {
 
         <div className="mt-6 flex flex-wrap gap-4 text-xs text-zinc-500">
           <LegendDot className="border border-white" label="Today" />
-          <LegendDot className="bg-blue-900" label="1 Event" />
-          <LegendDot className="bg-blue-700" label="2+ Events" />
-          <LegendDot className="bg-blue-500" label="4+ Events" />
+          <LegendDot className="bg-green-700" label="Finished" />
+          <LegendDot className="bg-red-800" label="Not Finished" />
+          <LegendDot className="bg-zinc-800" label="Empty" />
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
+        <h2 className="mb-4 text-lg font-semibold">This Month</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <StatTile
+            label="Finished"
+            value={monthStats.finishedCount}
+            valueClassName="text-green-400"
+          />
+          <StatTile
+            label="Not Finished"
+            value={monthStats.notFinishedCount}
+            valueClassName="text-orange-400"
+          />
+          <StatTile label="Total Events" value={monthStats.totalEvents} />
+          <StatTile label="Active Days" value={monthStats.activeDays} />
+          <StatTile
+            label="Total Session"
+            value={showDuration(monthStats.totalSessionMs)}
+          />
+          <StatTile
+            label="Avg Session"
+            value={showDuration(monthStats.avgSessionMs)}
+          />
+          <StatTile
+            label="Longest Session"
+            value={showDuration(monthStats.longestSessionMs)}
+          />
         </div>
       </div>
 
@@ -163,6 +224,25 @@ export default function Calendar({ sessions }: Props) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: ReactNode;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-zinc-800 p-4">
+      <div className="text-xs text-zinc-500">{label}</div>
+      <div className={`mt-1 text-2xl font-bold ${valueClassName ?? ""}`}>
+        {value}
+      </div>
     </div>
   );
 }
