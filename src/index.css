@@ -22,3 +22,33 @@ body {
     12px
   );
 }
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-24px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.22s ease-out;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.22s ease-out;
+}

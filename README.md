@@ -12,6 +12,67 @@ npm run build    # type-check + production build
 npm run lint
 ```
 
+## Android app (Capacitor)
+
+The native Android wrapper lives in `android/` and bundles the built web app
+(`dist/`) — same code, IndexedDB persists in the app sandbox. Export uses a
+native share sheet on device (browser download on web).
+
+### The PWA still works
+
+Capacitor is purely additive — it wraps the existing `dist/` build, it does not
+replace it. The web app and its PWA are unchanged:
+
+- `vite-plugin-pwa` still emits the service worker + manifest on `npm run build`;
+  `npm run dev` and browser install behave exactly as before.
+- Native-only code paths are guarded by `Capacitor.isNativePlatform()`
+  (`src/hooks/useImportExport.ts`), so the browser keeps the `<a download>`
+  export and never calls native plugins.
+- Same routes, same IndexedDB data layer in both targets.
+
+So you can ship the web/PWA and the Android APK from one codebase.
+
+### Where data lives
+
+- **Web / PWA**: IndexedDB in the browser profile.
+- **Android**: IndexedDB inside the app's private sandbox
+  (`/data/data/com.mtracker.app/app_webview/Default/IndexedDB/`). Survives
+  restarts and app updates; wiped on uninstall or "Clear data". Local only — no
+  cloud. Use Settings → Export for backups (writes to app cache, then shares).
+
+```bash
+npm run cap:sync     # build web + copy into android/
+npm run android:open # open in Android Studio
+```
+
+Regenerate icons/splash after changing `assets/icon.png`:
+
+```bash
+npx capacitor-assets generate --android \
+  --iconBackgroundColor '#09090b' --splashBackgroundColor '#09090b'
+```
+
+### Build a personal APK (sideload)
+
+Requires the Android SDK — install **Android Studio** and finish its first-run
+wizard (installs the SDK to `~/Android/Sdk`). The CLI build is then:
+
+```bash
+npm run cap:sync
+cd android && ANDROID_HOME=~/Android/Sdk ./gradlew :app:assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Notes:
+- `android/local.properties` holds `sdk.dir` (gitignored).
+- `android/gradle.properties` pins `org.gradle.java.home` to Android Studio's
+  bundled JBR, because the system `java-21` is a **JRE without `javac`**. Adjust
+  the path if Studio isn't the snap install.
+- Install on a phone: `~/Android/Sdk/platform-tools/adb install app-debug.apk`
+  (USB debugging on), or copy the APK over and allow "install unknown apps".
+
+App id: `com.mtracker.app`.
+
 ## Architecture
 
 ```

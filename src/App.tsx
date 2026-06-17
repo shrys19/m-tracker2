@@ -20,7 +20,8 @@ import Settings from "./pages/Settings";
 import { useImportExport } from "./hooks/useImportExport";
 import { useSessions } from "./hooks/useSessions";
 import { useSettings } from "./hooks/useSettings";
-import type { Tab } from "./types";
+import { useSwipe } from "./hooks/useSwipe";
+import { TAB_ORDER, type Tab } from "./types";
 
 /**
  * App.tsx is the thin shell:
@@ -42,6 +43,20 @@ export default function App() {
 
   // ---------- UI state ----------
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  // Direction of the last tab change, for the slide-in animation.
+  const [dir, setDir] = useState<"next" | "prev">("next");
+
+  function changeTab(next: Tab) {
+    if (next === activeTab) return;
+    setDir(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(activeTab) ? "next" : "prev");
+    setActiveTab(next);
+  }
+
+  const tabIndex = TAB_ORDER.indexOf(activeTab);
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: () => changeTab(TAB_ORDER[Math.min(tabIndex + 1, TAB_ORDER.length - 1)]),
+    onSwipeRight: () => changeTab(TAB_ORDER[Math.max(tabIndex - 1, 0)]),
+  });
 
   // Modal visibility flags.
   const [showPastEvent, setShowPastEvent] = useState(false);
@@ -183,10 +198,18 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 safe-top">
-      <BottomNavigation activeTab={activeTab} onChange={setActiveTab} />
+    <div className="min-h-screen overflow-x-hidden bg-zinc-950 text-zinc-100 safe-top">
+      <BottomNavigation activeTab={activeTab} onChange={changeTab} />
 
-      <div className="mx-auto max-w-md p-6 pb-24">{renderPage()}</div>
+      <div
+        className="mx-auto max-w-md p-6 pb-24"
+        onTouchStart={swipeHandlers.onTouchStart}
+        onTouchEnd={swipeHandlers.onTouchEnd}
+      >
+        <div key={activeTab} className={dir === "next" ? "slide-in-right" : "slide-in-left"}>
+          {renderPage()}
+        </div>
+      </div>
 
       {activeTab === "dashboard" && (
         <FloatingActionButton

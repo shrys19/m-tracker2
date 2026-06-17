@@ -1,22 +1,23 @@
-import type { Tab } from "../types";
+import { TAB_ORDER, type Tab } from "../types";
 
 type Props = {
   activeTab: Tab;
   onChange: (tab: Tab) => void;
 };
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "calendar", label: "Calendar" },
-  { id: "insights", label: "Insights" },
-  { id: "settings", label: "Settings" },
-];
+const TAB_LABELS: Record<Tab, string> = {
+  dashboard: "Dashboard",
+  calendar: "Calendar",
+  insights: "Insights",
+  settings: "Settings",
+};
 
 export default function BottomNavigation({ activeTab, onChange }: Props) {
   return (
     <div className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950">
       <div className="mx-auto flex max-w-md justify-between px-4">
-        {TABS.map(({ id, label }) => {
+        {TAB_ORDER.map((id) => {
+          const label = TAB_LABELS[id];
           const active = activeTab === id;
           return (
             <button
